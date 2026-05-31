@@ -1,0 +1,10 @@
+[package]
+name = "melody"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+iced = "0.12"
+midly = "0.5"
+rand = "0.8"
+rfd = "0.14"
