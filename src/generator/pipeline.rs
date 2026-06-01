@@ -1,9 +1,9 @@
 use rand::rngs::StdRng;
 
-use super::common::{apply_phrase_memory, apply_velocity_range, ticks_per_bar};
+use super::common::{apply_bar_density, apply_phrase_memory, apply_velocity_range, ticks_per_bar};
 use super::{
-    arp, bassline, chiptune, chord_pads, chords, euclidean, hook, melody, ChordEvent,
-    GeneratedSong, GeneratorMode, GeneratorSettings, NoteEvent,
+    arp, bassline, buildup_drop, chiptune, chord_pads, chords, counter_melody, euclidean, hook,
+    melody, ChordEvent, GeneratedSong, GeneratorMode, GeneratorSettings, NoteEvent,
 };
 
 pub(crate) struct SongPipeline<'a> {
@@ -50,13 +50,31 @@ impl<'a> SongPipeline<'a> {
             GeneratorMode::ChordPads => {
                 chord_pads::generate_chord_pads(self.settings, chords, &mut self.rng)
             }
+            GeneratorMode::CounterMelody => {
+                counter_melody::generate_counter_melody(self.settings, chords, &mut self.rng)
+            }
+            GeneratorMode::BuildupDrop => {
+                buildup_drop::generate_buildup_drop(self.settings, chords, &mut self.rng)
+            }
         });
         self
     }
 
     pub(crate) fn apply_phrase_memory(mut self) -> Self {
         let notes = self.notes.take().expect("pipeline notes generated");
-        self.notes = Some(apply_phrase_memory(self.settings, notes, &mut self.rng));
+        let notes = if matches!(
+            self.settings.mode,
+            GeneratorMode::ChordPads | GeneratorMode::CounterMelody | GeneratorMode::BuildupDrop
+        ) {
+            notes
+        } else {
+            apply_bar_density(self.settings, notes)
+        };
+        self.notes = Some(if self.settings.mode == GeneratorMode::BuildupDrop {
+            notes
+        } else {
+            apply_phrase_memory(self.settings, notes, &mut self.rng)
+        });
         self
     }
 

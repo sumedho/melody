@@ -62,6 +62,19 @@ fn manual_bassline_edit_marks_preset_custom() {
 }
 
 #[test]
+fn drop_type_edit_marks_preset_custom() {
+    let mut app = app();
+    apply(
+        &mut app,
+        Message::PresetChanged(GeneratorPreset::TechnoBass),
+    );
+    apply(&mut app, Message::DropTypeChanged(DropType::SupersawDrop));
+
+    assert_eq!(app.music.settings.drop_type, DropType::SupersawDrop);
+    assert_eq!(app.music.settings.preset, GeneratorPreset::Custom);
+}
+
+#[test]
 fn seed_and_export_edits_do_not_mark_preset_custom() {
     let mut app = app();
     apply(

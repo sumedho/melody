@@ -1,9 +1,11 @@
 mod arp;
 mod bassline;
+mod buildup_drop;
 mod chiptune;
 mod chord_pads;
 mod chords;
 mod common;
+mod counter_melody;
 mod euclidean;
 mod hook;
 mod melody;
@@ -41,6 +43,7 @@ pub struct NoteEvent {
 pub struct ChordEvent {
     pub root: u8,
     pub quality: ChordQuality,
+    pub slash_bass: Option<u8>,
     pub degree: usize,
     pub start_ticks: u32,
     pub duration_ticks: u32,
@@ -49,20 +52,33 @@ pub struct ChordEvent {
 
 impl ChordEvent {
     pub fn label(&self) -> String {
+        let suffix = match self.quality {
+            ChordQuality::Major => "",
+            ChordQuality::Minor => "m",
+            ChordQuality::Dominant => "7",
+            ChordQuality::Diminished => "dim",
+            ChordQuality::Suspended => "sus",
+            ChordQuality::MinorDyad => "m(no5)",
+            ChordQuality::Minor7 => "m7",
+            ChordQuality::Sus2 => "sus2",
+            ChordQuality::Add9 => "add9",
+            ChordQuality::Maj7 => "maj7",
+            ChordQuality::Maj9 => "maj9",
+            ChordQuality::Min9 => "m9",
+            ChordQuality::Sus4 => "sus4",
+            ChordQuality::Add11 => "add11",
+            ChordQuality::Add13 => "add13",
+        };
+        let slash = self
+            .slash_bass
+            .map(|bass| format!("/{}", pitch_class_name(bass)))
+            .unwrap_or_default();
+
         format!(
-            "{}{} {}",
+            "{}{}{} {}",
             pitch_class_name(self.root),
-            match self.quality {
-                ChordQuality::Major => "",
-                ChordQuality::Minor => "m",
-                ChordQuality::Dominant => "7",
-                ChordQuality::Diminished => "dim",
-                ChordQuality::Suspended => "sus",
-                ChordQuality::MinorDyad => "m(no5)",
-                ChordQuality::Minor7 => "m7",
-                ChordQuality::Sus2 => "sus2",
-                ChordQuality::Add9 => "add9",
-            },
+            suffix,
+            slash,
             roman_degree(self.degree, self.quality, self.tension)
         )
     }
@@ -78,6 +94,12 @@ impl ChordEvent {
             ChordQuality::Minor7 => &[0, 3, 7, 10],
             ChordQuality::Sus2 => &[0, 2, 7],
             ChordQuality::Add9 => &[0, 4, 7, 14],
+            ChordQuality::Maj7 => &[0, 4, 7, 11],
+            ChordQuality::Maj9 => &[0, 4, 7, 11, 14],
+            ChordQuality::Min9 => &[0, 3, 7, 10, 14],
+            ChordQuality::Sus4 => &[0, 5, 7],
+            ChordQuality::Add11 => &[0, 4, 7, 17],
+            ChordQuality::Add13 => &[0, 4, 7, 21],
         };
         intervals
             .iter()
@@ -97,6 +119,12 @@ pub enum ChordQuality {
     Minor7,
     Sus2,
     Add9,
+    Maj7,
+    Maj9,
+    Min9,
+    Sus4,
+    Add11,
+    Add13,
 }
 
 pub fn generate_song(settings: &GeneratorSettings) -> GeneratedSong {

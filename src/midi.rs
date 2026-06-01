@@ -170,6 +170,8 @@ fn generator_mode_slug(mode: GeneratorMode) -> &'static str {
     match mode {
         GeneratorMode::Melodic => "melodic",
         GeneratorMode::Hook => "hook",
+        GeneratorMode::CounterMelody => "counter-melody",
+        GeneratorMode::BuildupDrop => "buildup-drop",
         GeneratorMode::Euclidean => "euclidean",
         GeneratorMode::Arp => "arp",
         GeneratorMode::Chiptune => "chiptune",
@@ -263,6 +265,32 @@ mod tests {
         assert!(filename.starts_with("exports/melody-bassline-house-"));
         assert!(filename.ends_with(".mid"));
         assert!(filename.contains("-123-"));
+    }
+
+    #[test]
+    fn counter_melody_filename_uses_mode_slug() {
+        let settings = GeneratorSettings {
+            mode: GeneratorMode::CounterMelody,
+            seed: 321,
+            ..GeneratorSettings::default()
+        };
+        let filename = unique_midi_filename(&settings);
+
+        assert!(filename.starts_with("exports/melody-counter-melody-"));
+        assert!(filename.contains("-321-"));
+    }
+
+    #[test]
+    fn buildup_drop_filename_uses_mode_slug() {
+        let settings = GeneratorSettings {
+            mode: GeneratorMode::BuildupDrop,
+            seed: 654,
+            ..GeneratorSettings::default()
+        };
+        let filename = unique_midi_filename(&settings);
+
+        assert!(filename.starts_with("exports/melody-buildup-drop-"));
+        assert!(filename.contains("-654-"));
     }
 
     #[test]

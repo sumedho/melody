@@ -23,6 +23,54 @@ pub(crate) fn rhythm_density(settings: &GeneratorSettings) -> u8 {
     adjusted.clamp(5, 100) as u8
 }
 
+pub(crate) fn density_notes_per_bar(settings: &GeneratorSettings) -> usize {
+    ((rhythm_density(settings) as usize * 16).div_ceil(100)).clamp(1, 16)
+}
+
+pub(crate) fn apply_bar_density(
+    settings: &GeneratorSettings,
+    mut notes: Vec<NoteEvent>,
+) -> Vec<NoteEvent> {
+    let max_per_bar = density_notes_per_bar(settings);
+    let bar_ticks = ticks_per_bar();
+
+    for bar in 0..settings.bars as u32 {
+        let bar_start = bar * bar_ticks;
+        let bar_end = bar_start + bar_ticks;
+        let mut bar_notes: Vec<(usize, i32)> = notes
+            .iter()
+            .enumerate()
+            .filter(|(_, note)| note.start_ticks >= bar_start && note.start_ticks < bar_end)
+            .map(|(index, note)| {
+                let local_start = note.start_ticks - bar_start;
+                let grid_score = if local_start == 0 {
+                    3
+                } else if local_start % PPQN as u32 == 0 {
+                    2
+                } else if local_start % (PPQN as u32 / STEPS_PER_BEAT) == 0 {
+                    1
+                } else {
+                    0
+                };
+                let score = grid_score * 1_000_000 + note.velocity as i32 * 1_000
+                    - (local_start / (PPQN as u32 / STEPS_PER_BEAT)) as i32;
+                (index, score)
+            })
+            .collect();
+
+        if bar_notes.len() <= max_per_bar {
+            continue;
+        }
+
+        bar_notes.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        for (index, _) in bar_notes.iter().skip(max_per_bar) {
+            notes[*index].duration_ticks = 0;
+        }
+    }
+
+    cleanup_notes(settings, notes)
+}
+
 pub(crate) fn apply_phrase_memory(
     settings: &GeneratorSettings,
     mut notes: Vec<NoteEvent>,
@@ -115,10 +163,6 @@ pub(crate) fn apply_velocity_range(
     settings: &GeneratorSettings,
     mut notes: Vec<NoteEvent>,
 ) -> Vec<NoteEvent> {
-    if settings.velocity_mode != VelocityMode::Random {
-        return notes;
-    }
-
     let low = settings
         .random_velocity_min
         .min(settings.random_velocity_max);

@@ -76,6 +76,10 @@ impl MelodyApp {
         let mode_help = match self.music.settings.mode {
             GeneratorMode::Melodic => "Pattern grammar with chord-aware melodic contour.",
             GeneratorMode::Hook => "Short repeating riffs with pop and dance hook shapes.",
+            GeneratorMode::CounterMelody => {
+                "Main melody plus a lower answering line that fills gaps."
+            }
+            GeneratorMode::BuildupDrop => "Sparse buildup, riser, silence, impact, and drop.",
             GeneratorMode::Euclidean => "Evenly distributed pulses with rotation and accents.",
             GeneratorMode::Arp => "Chord tones unfolded as musical arpeggios.",
             GeneratorMode::Chiptune => "Gated leads, octave jumps, motifs, and pulse-bass flavor.",
@@ -102,6 +106,7 @@ impl MelodyApp {
                 3
             ),
             text(mode_help).size(13),
+            self.drop_controls(),
             self.hook_controls(),
             self.arp_controls(),
             self.bassline_controls(),
@@ -330,6 +335,21 @@ impl MelodyApp {
             .padding(10)
             .style(panel_style())
             .into()
+    }
+
+    fn drop_controls(&self) -> Element<'_, Message> {
+        if self.music.settings.mode != GeneratorMode::BuildupDrop {
+            return column![].into();
+        }
+
+        column![labeled_pick(
+            "Drop type",
+            DropType::ALL.to_vec(),
+            self.music.settings.drop_type,
+            Message::DropTypeChanged
+        )]
+        .spacing(10)
+        .into()
     }
 
     fn arp_controls(&self) -> Element<'_, Message> {

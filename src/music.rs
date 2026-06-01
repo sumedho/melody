@@ -28,7 +28,8 @@ pub(crate) fn roman_degree(degree: usize, quality: ChordQuality, tension: u8) ->
         ChordQuality::Minor
         | ChordQuality::Diminished
         | ChordQuality::MinorDyad
-        | ChordQuality::Minor7 => base.to_lowercase(),
+        | ChordQuality::Minor7
+        | ChordQuality::Min9 => base.to_lowercase(),
         _ => base.to_string(),
     };
     if tension > 65 {

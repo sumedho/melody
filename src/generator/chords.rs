@@ -70,10 +70,13 @@ pub(crate) fn generate_chords(settings: &GeneratorSettings, rng: &mut StdRng) ->
         }
 
         quality = tension_quality(settings, degree, quality, is_penultimate, rng);
+        let slash_bass = slash_bass_for_chord(root, quality, settings, rng);
+        quality = extension_quality(settings, degree, quality, rng);
 
         chords.push(ChordEvent {
             root,
             quality,
+            slash_bass,
             degree,
             start_ticks: start,
             duration_ticks: duration,
@@ -108,9 +111,18 @@ pub(crate) fn generate_boards_of_canada_chords(
         }
 
         let root = boc_root_for_offset(settings, offset);
+        let mut quality = boc_chord_quality(settings, index, rng);
+        let slash_bass = slash_bass_for_chord(root, quality, settings, rng);
+        quality = extension_quality(
+            settings,
+            boc_degree_label(offset, settings.scale.degree_count()),
+            quality,
+            rng,
+        );
         chords.push(ChordEvent {
             root,
-            quality: boc_chord_quality(settings, index, rng),
+            quality,
+            slash_bass,
             degree: boc_degree_label(offset, settings.scale.degree_count()),
             start_ticks: start,
             duration_ticks: duration,
@@ -171,7 +183,7 @@ pub(crate) fn boc_chord_quality(
         if settings.surprise > 70 && rng.gen_bool(0.25) {
             ChordQuality::Add9
         } else if rng.gen_bool(0.55) {
-            ChordQuality::Minor7
+            ChordQuality::Min9
         } else {
             ChordQuality::Sus2
         }
@@ -293,6 +305,9 @@ pub(crate) fn surprise_quality(current: ChordQuality, rng: &mut StdRng) -> Chord
         ChordQuality::Minor7,
         ChordQuality::Sus2,
         ChordQuality::Add9,
+        ChordQuality::Maj7,
+        ChordQuality::Min9,
+        ChordQuality::Sus4,
     ];
     let picked = colors[rng.gen_range(0..colors.len())];
     if picked == current {
@@ -318,7 +333,7 @@ pub(crate) fn tension_quality(
         ChordQuality::Dominant
     } else if matches!(scale_degree, 1 | 3) {
         if rng.gen_bool(0.6) {
-            ChordQuality::Suspended
+            ChordQuality::Sus4
         } else {
             ChordQuality::Add9
         }
@@ -327,4 +342,172 @@ pub(crate) fn tension_quality(
     } else {
         current
     }
+}
+
+pub(crate) fn extension_quality(
+    settings: &GeneratorSettings,
+    degree: usize,
+    current: ChordQuality,
+    rng: &mut StdRng,
+) -> ChordQuality {
+    if current == ChordQuality::Diminished {
+        return current;
+    }
+
+    let extension_chance = match settings.chord_style {
+        ChordStyle::Jazz => 45 + settings.tension / 3,
+        ChordStyle::Pop | ChordStyle::PopDescent | ChordStyle::Modal => 25 + settings.tension / 4,
+        ChordStyle::BoardsOfCanada => 35 + settings.tension / 4,
+        ChordStyle::ChiptuneLoop => 10 + settings.tension / 8,
+        ChordStyle::AcidMinimal | ChordStyle::MinorCinematic => {
+            8 + settings.tension / 6 + settings.surprise / 8
+        }
+        ChordStyle::Balanced => 15 + settings.tension / 5 + settings.surprise / 10,
+    }
+    .min(85);
+
+    if rng.gen_range(0..100) >= extension_chance {
+        return current;
+    }
+
+    let scale_degree = degree % settings.scale.degree_count();
+    let minorish = is_minor_quality(current)
+        || matches!(scale_degree, 1 | 2 | 5)
+        || settings.scale.is_minorish();
+    let palette: &[ChordQuality] = match settings.chord_style {
+        ChordStyle::Jazz => {
+            if minorish {
+                &[
+                    ChordQuality::Minor7,
+                    ChordQuality::Min9,
+                    ChordQuality::Dominant,
+                    ChordQuality::Add13,
+                ]
+            } else {
+                &[
+                    ChordQuality::Maj7,
+                    ChordQuality::Maj9,
+                    ChordQuality::Dominant,
+                    ChordQuality::Add13,
+                ]
+            }
+        }
+        ChordStyle::Pop | ChordStyle::PopDescent | ChordStyle::Modal => {
+            if minorish {
+                &[
+                    ChordQuality::Minor7,
+                    ChordQuality::Min9,
+                    ChordQuality::Add9,
+                    ChordQuality::Sus2,
+                    ChordQuality::Sus4,
+                ]
+            } else {
+                &[
+                    ChordQuality::Add9,
+                    ChordQuality::Maj7,
+                    ChordQuality::Maj9,
+                    ChordQuality::Sus2,
+                    ChordQuality::Sus4,
+                ]
+            }
+        }
+        ChordStyle::BoardsOfCanada => &[
+            ChordQuality::Minor7,
+            ChordQuality::Min9,
+            ChordQuality::Sus2,
+            ChordQuality::Add9,
+        ],
+        ChordStyle::ChiptuneLoop => &[
+            ChordQuality::Major,
+            ChordQuality::Minor,
+            ChordQuality::Sus2,
+            ChordQuality::Sus4,
+            ChordQuality::Add9,
+        ],
+        ChordStyle::AcidMinimal | ChordStyle::MinorCinematic => {
+            if minorish {
+                &[
+                    ChordQuality::Minor7,
+                    ChordQuality::Min9,
+                    ChordQuality::Sus2,
+                    ChordQuality::Add9,
+                ]
+            } else {
+                &[
+                    ChordQuality::Add9,
+                    ChordQuality::Sus2,
+                    ChordQuality::Sus4,
+                    ChordQuality::Maj7,
+                ]
+            }
+        }
+        ChordStyle::Balanced => {
+            if minorish {
+                &[
+                    ChordQuality::Minor7,
+                    ChordQuality::Min9,
+                    ChordQuality::Add9,
+                    ChordQuality::Sus2,
+                ]
+            } else {
+                &[
+                    ChordQuality::Add9,
+                    ChordQuality::Maj7,
+                    ChordQuality::Sus2,
+                    ChordQuality::Add11,
+                ]
+            }
+        }
+    };
+
+    let picked = palette[rng.gen_range(0..palette.len())];
+    if preserves_minor_color(current, picked) {
+        picked
+    } else {
+        current
+    }
+}
+
+fn is_minor_quality(quality: ChordQuality) -> bool {
+    matches!(
+        quality,
+        ChordQuality::Minor | ChordQuality::MinorDyad | ChordQuality::Minor7 | ChordQuality::Min9
+    )
+}
+
+fn preserves_minor_color(current: ChordQuality, picked: ChordQuality) -> bool {
+    !is_minor_quality(current)
+        || is_minor_quality(picked)
+        || matches!(
+            picked,
+            ChordQuality::Sus2 | ChordQuality::Sus4 | ChordQuality::Add9
+        )
+}
+
+fn slash_bass_for_chord(
+    root: u8,
+    quality: ChordQuality,
+    settings: &GeneratorSettings,
+    rng: &mut StdRng,
+) -> Option<u8> {
+    let chance = settings
+        .surprise
+        .saturating_add(settings.tension / 2)
+        .saturating_sub(75)
+        / 3;
+    if chance == 0 || rng.gen_range(0..100) >= chance {
+        return None;
+    }
+
+    let tones = match quality {
+        ChordQuality::Minor
+        | ChordQuality::MinorDyad
+        | ChordQuality::Minor7
+        | ChordQuality::Min9 => [3, 7],
+        ChordQuality::Sus2 => [2, 7],
+        ChordQuality::Suspended | ChordQuality::Sus4 => [5, 7],
+        ChordQuality::Diminished => [3, 6],
+        _ => [4, 7],
+    };
+    Some((root + tones[rng.gen_range(0..tones.len())]) % 12)
 }

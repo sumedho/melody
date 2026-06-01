@@ -33,6 +33,7 @@ enum Message {
     KeyChanged(Key),
     ScaleChanged(Scale),
     ModeChanged(GeneratorMode),
+    DropTypeChanged(DropType),
     BarsChanged(u16),
     TempoChanged(u16),
     SeedChanged(String),

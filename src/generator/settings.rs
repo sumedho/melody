@@ -8,6 +8,7 @@ pub struct GeneratorSettings {
     pub key: Key,
     pub scale: Scale,
     pub mode: GeneratorMode,
+    pub drop_type: DropType,
     pub bars: u16,
     pub tempo: u16,
     pub seed: u64,
@@ -47,6 +48,7 @@ impl Default for GeneratorSettings {
             key: Key::C,
             scale: Scale::Major,
             mode: GeneratorMode::Melodic,
+            drop_type: DropType::BassDrop,
             bars: 4,
             tempo: 110,
             seed: 42,
@@ -90,6 +92,7 @@ struct PresetDefinition {
 #[derive(Debug, Clone, Copy)]
 struct PresetSettings {
     mode: Option<GeneratorMode>,
+    drop_type: Option<DropType>,
     scale: Option<Scale>,
     bars: Option<u16>,
     tempo: Option<u16>,
@@ -121,6 +124,7 @@ struct PresetSettings {
 impl PresetSettings {
     const EMPTY: Self = Self {
         mode: None,
+        drop_type: None,
         scale: None,
         bars: None,
         tempo: None,
@@ -152,6 +156,9 @@ impl PresetSettings {
     fn apply_to(self, settings: &mut GeneratorSettings) {
         if let Some(value) = self.mode {
             settings.mode = value;
+        }
+        if let Some(value) = self.drop_type {
+            settings.drop_type = value;
         }
         if let Some(value) = self.scale {
             settings.scale = value;
@@ -901,6 +908,8 @@ impl Display for Scale {
 pub enum GeneratorMode {
     Melodic,
     Hook,
+    CounterMelody,
+    BuildupDrop,
     Euclidean,
     Arp,
     Chiptune,
@@ -909,9 +918,11 @@ pub enum GeneratorMode {
 }
 
 impl GeneratorMode {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 9] = [
         Self::Melodic,
         Self::Hook,
+        Self::CounterMelody,
+        Self::BuildupDrop,
         Self::Euclidean,
         Self::Arp,
         Self::Chiptune,
@@ -925,11 +936,44 @@ impl Display for GeneratorMode {
         f.write_str(match self {
             Self::Melodic => "Melodic",
             Self::Hook => "Hook",
+            Self::CounterMelody => "Counter",
+            Self::BuildupDrop => "Drop",
             Self::Euclidean => "Euclidean",
             Self::Arp => "Arp",
             Self::Chiptune => "Chiptune",
             Self::Bassline => "Bassline",
             Self::ChordPads => "Chord pads",
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropType {
+    BassDrop,
+    SupersawDrop,
+    HalfTimeDrop,
+    FillDrop,
+    VocalDrop,
+}
+
+impl DropType {
+    pub const ALL: [Self; 5] = [
+        Self::BassDrop,
+        Self::SupersawDrop,
+        Self::HalfTimeDrop,
+        Self::FillDrop,
+        Self::VocalDrop,
+    ];
+}
+
+impl Display for DropType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::BassDrop => "Bass drop",
+            Self::SupersawDrop => "Supersaw drop",
+            Self::HalfTimeDrop => "Half-time drop",
+            Self::FillDrop => "Fill drop",
+            Self::VocalDrop => "Vocal drop",
         })
     }
 }

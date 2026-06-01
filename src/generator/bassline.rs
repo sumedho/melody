@@ -9,6 +9,8 @@ use super::common::{
 };
 use super::{BasslineStyle, ChordEvent, GeneratorSettings, NoteEvent, PPQN};
 
+const BASS_REGISTER_SPAN: u8 = 24;
+
 pub(crate) fn generate_bassline(
     settings: &GeneratorSettings,
     chords: &[ChordEvent],
@@ -289,14 +291,10 @@ pub(crate) fn choose_bassline_pitch(
 ) -> u8 {
     let low = settings.low_pitch();
     let high = settings.high_pitch();
-    let midpoint = low + (high - low) / 2;
-    let mut candidates = bassline_chord_candidates(chord, low, midpoint.max(low));
+    let mut candidates = bassline_chord_candidates(chord, low, high);
 
     if candidates.is_empty() {
-        candidates = scale_pitches_in_range(settings)
-            .into_iter()
-            .filter(|pitch| *pitch <= midpoint.max(low))
-            .collect();
+        candidates = scale_pitches_in_range(settings);
     }
     if candidates.is_empty() {
         candidates.push(low);
@@ -319,6 +317,7 @@ pub(crate) fn choose_bassline_pitch(
     } else {
         candidates[rng.gen_range(0..candidates.len())]
     };
+    let pitch = prefer_bass_register(pitch, low, high);
 
     if rng.gen_range(0..100) < settings.bassline_octave_jump && pitch + 12 <= high {
         pitch + 12
@@ -335,31 +334,49 @@ pub(crate) fn choose_bass_degree_pitch(
 ) -> u8 {
     let low = settings.low_pitch();
     let high = settings.high_pitch();
-    let target_class = if degree == 0 {
-        chord.root % 12
-    } else {
-        pitch_class_for_degree(settings.key, settings.scale, degree) % 12
-    };
+    let target_class = bass_target_class(settings, chord, degree);
     let mut candidates: Vec<u8> = (low..=high)
-        .filter(|pitch| *pitch <= low.saturating_add(24).min(high) && pitch % 12 == target_class)
+        .filter(|pitch| pitch % 12 == target_class)
         .collect();
     if candidates.is_empty() {
-        candidates = bassline_chord_candidates(chord, low, low.saturating_add(24).min(high));
+        candidates = bassline_chord_candidates(chord, low, high);
     }
     if candidates.is_empty() {
-        candidates = scale_pitches_in_range(settings)
-            .into_iter()
-            .filter(|pitch| *pitch <= low.saturating_add(24).min(high))
-            .collect();
+        candidates = scale_pitches_in_range(settings);
     }
     let mut pitch = candidates
         .get(rng.gen_range(0..candidates.len().max(1)))
         .copied()
         .unwrap_or(low);
+    pitch = prefer_bass_register(pitch, low, high);
     if rng.gen_range(0..100) < settings.bassline_octave_jump && pitch + 12 <= high {
         pitch += 12;
     }
     pitch
+}
+
+fn bass_target_class(settings: &GeneratorSettings, chord: &ChordEvent, degree: usize) -> u8 {
+    if degree == 0 {
+        return chord.root % 12;
+    }
+
+    let chord_tones = chord.tones();
+    if degree % 2 == 0 {
+        if let Some(tone) = chord_tones.get(degree / 2) {
+            return *tone % 12;
+        }
+    }
+
+    pitch_class_for_degree(settings.key, settings.scale, chord.degree + degree) % 12
+}
+
+fn prefer_bass_register(pitch: u8, low: u8, high: u8) -> u8 {
+    let preferred_high = low.saturating_add(BASS_REGISTER_SPAN).min(high);
+    let mut candidate = pitch;
+    while candidate > preferred_high && candidate >= low.saturating_add(12) {
+        candidate -= 12;
+    }
+    candidate
 }
 
 pub(crate) fn bassline_chord_candidates(chord: &ChordEvent, low: u8, high: u8) -> Vec<u8> {

@@ -1,12 +1,16 @@
 use super::arp::{arp_order, rotating_arp_pitch};
+use super::bassline::choose_bass_degree_pitch;
+use super::buildup_drop::buildup_drop_sections;
 use super::chord_pads::{
     chord_pad_pitches, spread_voicing, voice_lead_chord_pad_voicing, voicing_center,
 };
-use super::chords::{borrowed_chord, chord_style_degree, generate_chords};
+use super::chords::{borrowed_chord, chord_style_degree, extension_quality, generate_chords};
 use super::common::{
-    apply_phrase_memory, chord_pitches_in_range, note_duration, octave_to_midi_c,
-    pitch_class_for_degree, quality_for_degree, rhythm_density, scale_pitches_in_range,
+    apply_phrase_memory, chord_at, chord_pitches_in_range, density_notes_per_bar, note_duration,
+    octave_to_midi_c, pitch_class_for_degree, quality_for_degree, rhythm_density,
+    scale_pitches_in_range,
 };
+use super::counter_melody::generate_counter_melody_parts;
 use super::euclidean::euclidean_pattern;
 use super::*;
 
@@ -22,6 +26,12 @@ fn note_signature(notes: &[NoteEvent]) -> Vec<(u8, u32, u32, u8)> {
             )
         })
         .collect()
+}
+
+fn note_active_at(notes: &[NoteEvent], tick: u32) -> bool {
+    notes
+        .iter()
+        .any(|note| tick >= note.start_ticks && tick < note.start_ticks + note.duration_ticks)
 }
 
 #[test]
@@ -45,6 +55,45 @@ fn chord_timeline_fills_requested_bars() {
 }
 
 #[test]
+fn extended_chord_qualities_have_expected_labels_and_tones() {
+    let cases = [
+        (ChordQuality::Maj7, "Cmaj7 I", vec![0, 4, 7, 11]),
+        (ChordQuality::Maj9, "Cmaj9 I", vec![0, 4, 7, 11, 2]),
+        (ChordQuality::Min9, "Cm9 i", vec![0, 3, 7, 10, 2]),
+        (ChordQuality::Sus4, "Csus4 I", vec![0, 5, 7]),
+        (ChordQuality::Add11, "Cadd11 I", vec![0, 4, 7, 5]),
+        (ChordQuality::Add13, "Cadd13 I", vec![0, 4, 7, 9]),
+    ];
+
+    for (quality, label, tones) in cases {
+        let chord = ChordEvent {
+            root: 0,
+            quality,
+            slash_bass: None,
+            degree: 0,
+            start_ticks: 0,
+            duration_ticks: ticks_per_bar(),
+            tension: 0,
+        };
+
+        assert_eq!(chord.label(), label);
+        assert_eq!(chord.tones(), tones);
+    }
+
+    let slash = ChordEvent {
+        root: 0,
+        quality: ChordQuality::Major,
+        slash_bass: Some(4),
+        degree: 0,
+        start_ticks: 0,
+        duration_ticks: ticks_per_bar(),
+        tension: 0,
+    };
+    assert_eq!(slash.label(), "C/E I");
+    assert_eq!(slash.tones(), vec![0, 4, 7]);
+}
+
+#[test]
 fn locked_chords_are_reused_exactly_across_seeds() {
     let settings = GeneratorSettings {
         seed: 1,
@@ -60,6 +109,53 @@ fn locked_chords_are_reused_exactly_across_seeds() {
     );
 
     assert_eq!(regenerated.chords, source.chords);
+}
+
+#[test]
+fn locked_chords_preserve_slash_bass_labels() {
+    let locked_chords = vec![ChordEvent {
+        root: 0,
+        quality: ChordQuality::Major,
+        slash_bass: Some(4),
+        degree: 0,
+        start_ticks: 0,
+        duration_ticks: ticks_per_bar(),
+        tension: 0,
+    }];
+    let song = generate_song_with_chords(
+        &GeneratorSettings {
+            bars: 2,
+            ..GeneratorSettings::default()
+        },
+        Some(&locked_chords),
+    );
+
+    assert_eq!(song.chords.len(), 2);
+    assert!(song
+        .chords
+        .iter()
+        .all(|chord| chord.slash_bass == Some(4) && chord.label().starts_with("C/E")));
+}
+
+#[test]
+fn high_tension_surprise_can_generate_slash_chord_labels() {
+    let generated_slash = (0..32).any(|seed| {
+        let song = generate_song(&GeneratorSettings {
+            chord_style: ChordStyle::Pop,
+            tension: 100,
+            surprise: 100,
+            cadence: 0,
+            bars: 8,
+            seed,
+            ..GeneratorSettings::default()
+        });
+
+        song.chords
+            .iter()
+            .any(|chord| chord.slash_bass.is_some() && chord.label().contains('/'))
+    });
+
+    assert!(generated_slash);
 }
 
 #[test]
@@ -138,6 +234,7 @@ fn locked_chords_are_reused_by_every_generator_mode() {
         ChordEvent {
             root: 1,
             quality: ChordQuality::Minor7,
+            slash_bass: None,
             degree: 0,
             start_ticks: 0,
             duration_ticks: ticks_per_bar() * 2,
@@ -146,6 +243,7 @@ fn locked_chords_are_reused_by_every_generator_mode() {
         ChordEvent {
             root: 8,
             quality: ChordQuality::Dominant,
+            slash_bass: None,
             degree: 4,
             start_ticks: ticks_per_bar() * 2,
             duration_ticks: ticks_per_bar() * 2,
@@ -176,6 +274,7 @@ fn locked_chords_are_reused_by_every_bassline_style() {
         ChordEvent {
             root: 3,
             quality: ChordQuality::Minor,
+            slash_bass: None,
             degree: 0,
             start_ticks: 0,
             duration_ticks: ticks_per_bar() * 2,
@@ -184,6 +283,7 @@ fn locked_chords_are_reused_by_every_bassline_style() {
         ChordEvent {
             root: 10,
             quality: ChordQuality::Suspended,
+            slash_bass: None,
             degree: 3,
             start_ticks: ticks_per_bar() * 2,
             duration_ticks: ticks_per_bar() * 2,
@@ -504,6 +604,43 @@ fn every_generator_respects_octave_range() {
 }
 
 #[test]
+fn density_caps_notes_per_bar_for_note_generators() {
+    for mode in GeneratorMode::ALL {
+        if matches!(mode, GeneratorMode::ChordPads | GeneratorMode::BuildupDrop) {
+            continue;
+        }
+
+        let settings = GeneratorSettings {
+            mode,
+            hook_type: HookType::StutterHook,
+            rhythm_style: RhythmStyle::Busy,
+            bars: 4,
+            density: 25,
+            repeat_amount: 100,
+            seed: 5150,
+            ..GeneratorSettings::default()
+        };
+        let song = generate_song(&settings);
+        let max_per_bar = density_notes_per_bar(&settings);
+
+        for bar in 0..settings.bars as u32 {
+            let start = bar * ticks_per_bar();
+            let end = start + ticks_per_bar();
+            let count = song
+                .notes
+                .iter()
+                .filter(|note| note.start_ticks >= start && note.start_ticks < end)
+                .count();
+            assert!(
+                count <= max_per_bar,
+                "{mode} generated {count} notes in bar {} with a per-bar density limit of {max_per_bar}",
+                bar + 1
+            );
+        }
+    }
+}
+
+#[test]
 fn zero_note_length_uses_identical_gate() {
     let settings = GeneratorSettings {
         note_length: 0,
@@ -717,6 +854,384 @@ fn generator_modes_include_chord_pads() {
 }
 
 #[test]
+fn generator_modes_include_counter_melody() {
+    assert!(GeneratorMode::ALL.contains(&GeneratorMode::CounterMelody));
+}
+
+#[test]
+fn generator_modes_include_buildup_drop() {
+    assert!(GeneratorMode::ALL.contains(&GeneratorMode::BuildupDrop));
+}
+
+#[test]
+fn drop_types_have_display_labels() {
+    assert_eq!(DropType::ALL.len(), 5);
+    assert_eq!(DropType::BassDrop.to_string(), "Bass drop");
+    assert_eq!(DropType::SupersawDrop.to_string(), "Supersaw drop");
+    assert_eq!(DropType::HalfTimeDrop.to_string(), "Half-time drop");
+    assert_eq!(DropType::FillDrop.to_string(), "Fill drop");
+    assert_eq!(DropType::VocalDrop.to_string(), "Vocal drop");
+}
+
+#[test]
+fn every_drop_type_produces_notes_and_is_deterministic() {
+    for drop_type in DropType::ALL {
+        let settings = GeneratorSettings {
+            mode: GeneratorMode::BuildupDrop,
+            drop_type,
+            bars: 8,
+            density: 80,
+            seed: 440,
+            ..GeneratorSettings::default()
+        };
+        let first = generate_song(&settings);
+        let second = generate_song(&settings);
+
+        assert!(!first.notes.is_empty(), "{drop_type}");
+        assert_eq!(note_signature(&first.notes), note_signature(&second.notes));
+        assert!(first
+            .notes
+            .iter()
+            .all(|note| { (settings.low_pitch()..=settings.high_pitch()).contains(&note.pitch) }));
+    }
+}
+
+#[test]
+fn buildup_drop_increases_buildup_density() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        bars: 8,
+        density: 90,
+        seed: 441,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let sections = buildup_drop_sections(&settings);
+    let first_bar = song
+        .notes
+        .iter()
+        .filter(|note| note.start_ticks < ticks_per_bar())
+        .count();
+    let later_bar_start = sections.silence_start.saturating_sub(ticks_per_bar());
+    let later_bar = song
+        .notes
+        .iter()
+        .filter(|note| {
+            note.start_ticks >= later_bar_start && note.start_ticks < sections.silence_start
+        })
+        .count();
+
+    assert!(later_bar > first_bar);
+}
+
+#[test]
+fn buildup_drop_has_ascending_louder_riser() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        bars: 8,
+        seed: 442,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let sections = buildup_drop_sections(&settings);
+    let riser_start = sections.silence_start.saturating_sub(ticks_per_bar());
+    let riser: Vec<&NoteEvent> = song
+        .notes
+        .iter()
+        .filter(|note| note.start_ticks >= riser_start && note.start_ticks < sections.silence_start)
+        .collect();
+
+    assert!(riser.len() >= 4);
+    assert!(riser.last().unwrap().pitch > riser.first().unwrap().pitch);
+    assert!(riser.last().unwrap().velocity > riser.first().unwrap().velocity);
+    assert!(riser.last().unwrap().duration_ticks <= riser.first().unwrap().duration_ticks);
+}
+
+#[test]
+fn buildup_drop_leaves_pre_drop_silence() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        bars: 8,
+        seed: 443,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let sections = buildup_drop_sections(&settings);
+    let silence_start = sections.drop_start - PPQN as u32 / 2;
+
+    assert!(song.notes.iter().all(|note| {
+        !(note.start_ticks >= silence_start && note.start_ticks < sections.drop_start)
+    }));
+}
+
+#[test]
+fn buildup_drop_impact_lands_on_drop_start() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        bars: 8,
+        seed: 444,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let sections = buildup_drop_sections(&settings);
+    let impact: Vec<&NoteEvent> = song
+        .notes
+        .iter()
+        .filter(|note| note.start_ticks == sections.drop_start)
+        .collect();
+    let chord = chord_at(&song.chords, sections.drop_start);
+
+    assert!(impact
+        .iter()
+        .any(|note| note.pitch <= settings.low_pitch() + 12));
+    assert!(
+        impact
+            .iter()
+            .filter(|note| chord.tones().contains(&(note.pitch % 12)))
+            .count()
+            >= 2
+    );
+}
+
+#[test]
+fn half_time_drop_has_fewer_longer_notes_than_bass_drop() {
+    let base = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        bars: 8,
+        density: 100,
+        seed: 445,
+        ..GeneratorSettings::default()
+    };
+    let bass = generate_song(&GeneratorSettings {
+        drop_type: DropType::BassDrop,
+        ..base
+    });
+    let half = generate_song(&GeneratorSettings {
+        drop_type: DropType::HalfTimeDrop,
+        ..base
+    });
+    let sections = buildup_drop_sections(&base);
+    let bass_drop_notes: Vec<&NoteEvent> = bass
+        .notes
+        .iter()
+        .filter(|note| note.start_ticks >= sections.drop_start)
+        .collect();
+    let half_drop_notes: Vec<&NoteEvent> = half
+        .notes
+        .iter()
+        .filter(|note| note.start_ticks >= sections.drop_start)
+        .collect();
+    let bass_avg = bass_drop_notes
+        .iter()
+        .map(|note| note.duration_ticks)
+        .sum::<u32>() as f32
+        / bass_drop_notes.len() as f32;
+    let half_avg = half_drop_notes
+        .iter()
+        .map(|note| note.duration_ticks)
+        .sum::<u32>() as f32
+        / half_drop_notes.len() as f32;
+
+    assert!(half_drop_notes.len() < bass_drop_notes.len());
+    assert!(half_avg > bass_avg);
+}
+
+#[test]
+fn vocal_drop_uses_short_upper_repeated_notes() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::BuildupDrop,
+        drop_type: DropType::VocalDrop,
+        bars: 8,
+        min_octave: 2,
+        max_octave: 6,
+        seed: 446,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let sections = buildup_drop_sections(&settings);
+    let upper_floor = settings.low_pitch() + (settings.high_pitch() - settings.low_pitch()) / 2;
+    let vocal_notes: Vec<&NoteEvent> = song
+        .notes
+        .iter()
+        .filter(|note| {
+            note.start_ticks >= sections.drop_start
+                && note.duration_ticks <= PPQN as u32 / 8
+                && note.pitch >= upper_floor
+        })
+        .collect();
+
+    assert!(vocal_notes.len() >= 8);
+}
+
+#[test]
+fn counter_melody_is_deterministic_for_fixed_seed() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        seed: 2024,
+        ..GeneratorSettings::default()
+    };
+    let first = generate_song(&settings);
+    let second = generate_song(&settings);
+
+    assert_eq!(note_signature(&first.notes), note_signature(&second.notes));
+}
+
+#[test]
+fn counter_melody_produces_main_and_counter_parts() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 80,
+        repeat_amount: 0,
+        seed: 91,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let mut rng = StdRng::seed_from_u64(settings.seed);
+    let chords = generate_chords(&settings, &mut rng);
+    let parts = generate_counter_melody_parts(&settings, &chords, &mut rng);
+
+    assert!(!parts.main.is_empty());
+    assert!(!parts.counter.is_empty());
+    assert_eq!(song.notes.len(), parts.main.len() + parts.counter.len());
+}
+
+#[test]
+fn counter_melody_uses_complementary_lower_register() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 80,
+        repeat_amount: 0,
+        seed: 92,
+        ..GeneratorSettings::default()
+    };
+    let mut rng = StdRng::seed_from_u64(settings.seed);
+    let chords = generate_chords(&settings, &mut rng);
+    let parts = generate_counter_melody_parts(&settings, &chords, &mut rng);
+    let highest_counter = parts.counter.iter().map(|note| note.pitch).max().unwrap();
+    let lowest_main = parts.main.iter().map(|note| note.pitch).min().unwrap();
+
+    assert!(highest_counter < lowest_main);
+}
+
+#[test]
+fn counter_melody_fills_main_melody_gaps() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 80,
+        repeat_amount: 0,
+        seed: 93,
+        ..GeneratorSettings::default()
+    };
+    let mut rng = StdRng::seed_from_u64(settings.seed);
+    let chords = generate_chords(&settings, &mut rng);
+    let parts = generate_counter_melody_parts(&settings, &chords, &mut rng);
+
+    assert!(!parts.counter.is_empty());
+    assert!(parts
+        .counter
+        .iter()
+        .all(|note| !note_active_at(&parts.main, note.start_ticks)));
+}
+
+#[test]
+fn counter_melody_uses_contrary_motion_when_main_moves() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 85,
+        repeat_amount: 0,
+        seed: 94,
+        ..GeneratorSettings::default()
+    };
+    let mut rng = StdRng::seed_from_u64(settings.seed);
+    let chords = generate_chords(&settings, &mut rng);
+    let parts = generate_counter_melody_parts(&settings, &chords, &mut rng);
+
+    let contrary = parts.counter.iter().any(|counter| {
+        let Some(previous_main) = parts
+            .main
+            .iter()
+            .rev()
+            .find(|note| note.start_ticks < counter.start_ticks)
+        else {
+            return false;
+        };
+        let Some(next_main) = parts
+            .main
+            .iter()
+            .find(|note| note.start_ticks > counter.start_ticks)
+        else {
+            return false;
+        };
+        let main_motion = next_main.pitch as i16 - previous_main.pitch as i16;
+        let counter_motion = counter.pitch as i16 - previous_main.pitch as i16;
+        (main_motion > 0 && counter_motion < 0) || (main_motion < 0 && counter_motion > 0)
+    });
+
+    assert!(contrary);
+}
+
+#[test]
+fn counter_melody_resolves_to_chord_tones_on_strong_beats() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 100,
+        repeat_amount: 0,
+        seed: 95,
+        ..GeneratorSettings::default()
+    };
+    let mut rng = StdRng::seed_from_u64(settings.seed);
+    let chords = generate_chords(&settings, &mut rng);
+    let parts = generate_counter_melody_parts(&settings, &chords, &mut rng);
+    let strong_counter_notes: Vec<&NoteEvent> = parts
+        .counter
+        .iter()
+        .filter(|note| note.start_ticks % PPQN as u32 == 0)
+        .collect();
+
+    assert!(!strong_counter_notes.is_empty());
+    assert!(strong_counter_notes.iter().all(|note| {
+        let chord = chord_at(&chords, note.start_ticks);
+        chord.tones().contains(&(note.pitch % 12))
+    }));
+}
+
+#[test]
+fn counter_melody_respects_combined_per_bar_density() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::CounterMelody,
+        min_octave: 3,
+        max_octave: 6,
+        density: 45,
+        repeat_amount: 100,
+        seed: 96,
+        ..GeneratorSettings::default()
+    };
+    let song = generate_song(&settings);
+    let max_per_bar = density_notes_per_bar(&settings);
+
+    for bar in 0..settings.bars as u32 {
+        let start = bar * ticks_per_bar();
+        let end = start + ticks_per_bar();
+        let count = song
+            .notes
+            .iter()
+            .filter(|note| note.start_ticks >= start && note.start_ticks < end)
+            .count();
+        assert!(count <= max_per_bar);
+    }
+}
+
+#[test]
 fn chord_styles_include_boards_of_canada() {
     assert!(ChordStyle::ALL.contains(&ChordStyle::BoardsOfCanada));
 }
@@ -746,8 +1261,80 @@ fn boards_of_canada_chords_are_mostly_minor_colored() {
     assert!(!song.chords.is_empty());
     assert!(song.chords.iter().all(|chord| matches!(
         chord.quality,
-        ChordQuality::MinorDyad | ChordQuality::Minor7 | ChordQuality::Sus2
+        ChordQuality::MinorDyad | ChordQuality::Minor7 | ChordQuality::Min9 | ChordQuality::Sus2
     )));
+}
+
+#[test]
+fn high_tension_pop_and_jazz_generate_modern_extensions() {
+    for chord_style in [ChordStyle::Pop, ChordStyle::Jazz] {
+        let generated_extension = (0..16).any(|seed| {
+            let song = generate_song(&GeneratorSettings {
+                chord_style,
+                tension: 100,
+                surprise: 60,
+                cadence: 0,
+                bars: 8,
+                seed,
+                ..GeneratorSettings::default()
+            });
+            song.chords.iter().any(|chord| {
+                matches!(
+                    chord.quality,
+                    ChordQuality::Maj7
+                        | ChordQuality::Maj9
+                        | ChordQuality::Min9
+                        | ChordQuality::Sus4
+                        | ChordQuality::Add11
+                        | ChordQuality::Add13
+                )
+            })
+        });
+
+        assert!(
+            generated_extension,
+            "{chord_style} should generate modern chord extensions"
+        );
+    }
+}
+
+#[test]
+fn chiptune_loop_favors_simple_game_chord_colors() {
+    let song = generate_song(&GeneratorSettings {
+        chord_style: ChordStyle::ChiptuneLoop,
+        bars: 8,
+        seed: 64,
+        ..GeneratorSettings::default()
+    });
+
+    assert!(!song.chords.is_empty());
+    assert!(song.chords.iter().all(|chord| !matches!(
+        chord.quality,
+        ChordQuality::Maj9 | ChordQuality::Min9 | ChordQuality::Add11 | ChordQuality::Add13
+    )));
+}
+
+#[test]
+fn extension_quality_preserves_minor_chord_color() {
+    let settings = GeneratorSettings {
+        chord_style: ChordStyle::Pop,
+        scale: Scale::NaturalMinor,
+        tension: 100,
+        surprise: 100,
+        ..GeneratorSettings::default()
+    };
+    let mut rng = StdRng::seed_from_u64(4);
+    let quality = extension_quality(&settings, 0, ChordQuality::Minor, &mut rng);
+
+    assert!(matches!(
+        quality,
+        ChordQuality::Minor
+            | ChordQuality::Minor7
+            | ChordQuality::Min9
+            | ChordQuality::Add9
+            | ChordQuality::Sus2
+            | ChordQuality::Sus4
+    ));
 }
 
 #[test]
@@ -797,6 +1384,7 @@ fn chord_pad_voicing_uses_selected_octave_range() {
     let chord = ChordEvent {
         root: 0,
         quality: ChordQuality::Major,
+        slash_bass: None,
         degree: 0,
         start_ticks: 0,
         duration_ticks: ticks_per_bar(),
@@ -834,6 +1422,7 @@ fn zero_chord_inversion_preserves_spread_voicing() {
     let chord = ChordEvent {
         root: 0,
         quality: ChordQuality::Major,
+        slash_bass: None,
         degree: 0,
         start_ticks: 0,
         duration_ticks: ticks_per_bar(),
@@ -862,6 +1451,7 @@ fn max_chord_inversion_can_change_chord_pad_voicing() {
     let chord = ChordEvent {
         root: 0,
         quality: ChordQuality::Major,
+        slash_bass: None,
         degree: 0,
         start_ticks: 0,
         duration_ticks: ticks_per_bar(),
@@ -1012,6 +1602,40 @@ fn every_bassline_style_respects_global_octave_range() {
             "{bassline_style} generated a note outside the selected octave range"
         );
     }
+}
+
+#[test]
+fn bass_degree_pitches_follow_current_chord_tones() {
+    let settings = GeneratorSettings {
+        mode: GeneratorMode::Bassline,
+        key: Key::C,
+        scale: Scale::Major,
+        min_octave: 5,
+        max_octave: 6,
+        bassline_octave_jump: 0,
+        ..GeneratorSettings::default()
+    };
+    let chord = ChordEvent {
+        root: 5,
+        quality: ChordQuality::Major,
+        slash_bass: None,
+        degree: 3,
+        start_ticks: 0,
+        duration_ticks: ticks_per_bar(),
+        tension: 0,
+    };
+    let mut rng = StdRng::seed_from_u64(9);
+
+    let root = choose_bass_degree_pitch(&settings, &chord, 0, &mut rng);
+    let third = choose_bass_degree_pitch(&settings, &chord, 2, &mut rng);
+    let fifth = choose_bass_degree_pitch(&settings, &chord, 4, &mut rng);
+
+    assert_eq!(root % 12, 5);
+    assert_eq!(third % 12, 9);
+    assert_eq!(fifth % 12, 0);
+    assert!([root, third, fifth]
+        .iter()
+        .all(|pitch| (settings.low_pitch()..=settings.high_pitch()).contains(pitch)));
 }
 
 #[test]
