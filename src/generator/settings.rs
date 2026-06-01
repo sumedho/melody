@@ -79,195 +79,399 @@ impl Default for GeneratorSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PresetDefinition {
+    preset: GeneratorPreset,
+    settings: PresetSettings,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PresetSettings {
+    mode: Option<GeneratorMode>,
+    scale: Option<Scale>,
+    bars: Option<u16>,
+    tempo: Option<u16>,
+    chord_style: Option<ChordStyle>,
+    rhythm_style: Option<RhythmStyle>,
+    tension: Option<u8>,
+    surprise: Option<u8>,
+    cadence: Option<u8>,
+    chord_inversion_amount: Option<u8>,
+    density: Option<u8>,
+    note_length: Option<u8>,
+    repeat_amount: Option<u8>,
+    variation_amount: Option<u8>,
+    min_octave: Option<u8>,
+    max_octave: Option<u8>,
+    arp_note_count: Option<u8>,
+    arp_pattern: Option<ArpPattern>,
+    arp_rotate_slot: Option<u8>,
+    arp_rotation: Option<ArpRotation>,
+    bassline_style: Option<BasslineStyle>,
+    bassline_accent: Option<u8>,
+    bassline_slide: Option<u8>,
+    bassline_octave_jump: Option<u8>,
+    bassline_mutation: Option<u8>,
+    velocity_mode: Option<VelocityMode>,
+}
+
+impl PresetSettings {
+    const EMPTY: Self = Self {
+        mode: None,
+        scale: None,
+        bars: None,
+        tempo: None,
+        chord_style: None,
+        rhythm_style: None,
+        tension: None,
+        surprise: None,
+        cadence: None,
+        chord_inversion_amount: None,
+        density: None,
+        note_length: None,
+        repeat_amount: None,
+        variation_amount: None,
+        min_octave: None,
+        max_octave: None,
+        arp_note_count: None,
+        arp_pattern: None,
+        arp_rotate_slot: None,
+        arp_rotation: None,
+        bassline_style: None,
+        bassline_accent: None,
+        bassline_slide: None,
+        bassline_octave_jump: None,
+        bassline_mutation: None,
+        velocity_mode: None,
+    };
+
+    fn apply_to(self, settings: &mut GeneratorSettings) {
+        if let Some(value) = self.mode {
+            settings.mode = value;
+        }
+        if let Some(value) = self.scale {
+            settings.scale = value;
+        }
+        if let Some(value) = self.bars {
+            settings.bars = value;
+        }
+        if let Some(value) = self.tempo {
+            settings.tempo = value;
+        }
+        if let Some(value) = self.chord_style {
+            settings.chord_style = value;
+        }
+        if let Some(value) = self.rhythm_style {
+            settings.rhythm_style = value;
+        }
+        if let Some(value) = self.tension {
+            settings.tension = value;
+        }
+        if let Some(value) = self.surprise {
+            settings.surprise = value;
+        }
+        if let Some(value) = self.cadence {
+            settings.cadence = value;
+        }
+        if let Some(value) = self.chord_inversion_amount {
+            settings.chord_inversion_amount = value;
+        }
+        if let Some(value) = self.density {
+            settings.density = value;
+        }
+        if let Some(value) = self.note_length {
+            settings.note_length = value;
+        }
+        if let Some(value) = self.repeat_amount {
+            settings.repeat_amount = value;
+        }
+        if let Some(value) = self.variation_amount {
+            settings.variation_amount = value;
+        }
+        if let Some(value) = self.min_octave {
+            settings.min_octave = value;
+        }
+        if let Some(value) = self.max_octave {
+            settings.max_octave = value;
+        }
+        if let Some(value) = self.arp_note_count {
+            settings.arp_note_count = value;
+        }
+        if let Some(value) = self.arp_pattern {
+            settings.arp_pattern = value;
+        }
+        if let Some(value) = self.arp_rotate_slot {
+            settings.arp_rotate_slot = value;
+        }
+        if let Some(value) = self.arp_rotation {
+            settings.arp_rotation = value;
+        }
+        if let Some(value) = self.bassline_style {
+            settings.bassline_style = value;
+        }
+        if let Some(value) = self.bassline_accent {
+            settings.bassline_accent = value;
+        }
+        if let Some(value) = self.bassline_slide {
+            settings.bassline_slide = value;
+        }
+        if let Some(value) = self.bassline_octave_jump {
+            settings.bassline_octave_jump = value;
+        }
+        if let Some(value) = self.bassline_mutation {
+            settings.bassline_mutation = value;
+        }
+        if let Some(value) = self.velocity_mode {
+            settings.velocity_mode = value;
+        }
+    }
+}
+
+const PRESET_DEFINITIONS: &[PresetDefinition] = &[
+    PresetDefinition {
+        preset: GeneratorPreset::TechnoBass,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::Techno),
+            scale: Some(Scale::MinorPentatonic),
+            tempo: Some(128),
+            min_octave: Some(1),
+            max_octave: Some(3),
+            chord_style: Some(ChordStyle::AcidMinimal),
+            rhythm_style: Some(RhythmStyle::Syncopated),
+            density: Some(78),
+            note_length: Some(22),
+            repeat_amount: Some(72),
+            variation_amount: Some(35),
+            bassline_accent: Some(82),
+            bassline_slide: Some(45),
+            bassline_octave_jump: Some(46),
+            bassline_mutation: Some(42),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::HouseBass,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::House),
+            scale: Some(Scale::Dorian),
+            tempo: Some(124),
+            min_octave: Some(2),
+            max_octave: Some(4),
+            chord_style: Some(ChordStyle::Pop),
+            rhythm_style: Some(RhythmStyle::Syncopated),
+            density: Some(66),
+            note_length: Some(48),
+            repeat_amount: Some(64),
+            variation_amount: Some(24),
+            bassline_accent: Some(58),
+            bassline_slide: Some(10),
+            bassline_octave_jump: Some(22),
+            bassline_mutation: Some(35),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::Drill808,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::Drill),
+            scale: Some(Scale::NaturalMinor),
+            tempo: Some(140),
+            min_octave: Some(1),
+            max_octave: Some(3),
+            chord_style: Some(ChordStyle::MinorCinematic),
+            rhythm_style: Some(RhythmStyle::Sparse),
+            density: Some(52),
+            note_length: Some(88),
+            repeat_amount: Some(55),
+            variation_amount: Some(30),
+            bassline_accent: Some(76),
+            bassline_slide: Some(78),
+            bassline_octave_jump: Some(45),
+            bassline_mutation: Some(48),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::HipHop808,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::HipHop),
+            scale: Some(Scale::Blues),
+            tempo: Some(92),
+            min_octave: Some(1),
+            max_octave: Some(3),
+            chord_style: Some(ChordStyle::MinorCinematic),
+            rhythm_style: Some(RhythmStyle::Sparse),
+            density: Some(42),
+            note_length: Some(72),
+            repeat_amount: Some(60),
+            variation_amount: Some(18),
+            bassline_accent: Some(72),
+            bassline_slide: Some(18),
+            bassline_octave_jump: Some(36),
+            bassline_mutation: Some(28),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::UkGarageBass,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::UkGarage),
+            scale: Some(Scale::NaturalMinor),
+            tempo: Some(127),
+            min_octave: Some(2),
+            max_octave: Some(4),
+            chord_style: Some(ChordStyle::Modal),
+            rhythm_style: Some(RhythmStyle::Syncopated),
+            density: Some(70),
+            note_length: Some(34),
+            repeat_amount: Some(62),
+            variation_amount: Some(38),
+            bassline_accent: Some(64),
+            bassline_slide: Some(24),
+            bassline_octave_jump: Some(40),
+            bassline_mutation: Some(55),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::DrumAndBass,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Bassline),
+            bassline_style: Some(BasslineStyle::DrumAndBass),
+            scale: Some(Scale::NaturalMinor),
+            tempo: Some(174),
+            min_octave: Some(1),
+            max_octave: Some(3),
+            chord_style: Some(ChordStyle::MinorCinematic),
+            rhythm_style: Some(RhythmStyle::Busy),
+            density: Some(74),
+            note_length: Some(28),
+            repeat_amount: Some(45),
+            variation_amount: Some(48),
+            bassline_accent: Some(80),
+            bassline_slide: Some(20),
+            bassline_octave_jump: Some(34),
+            bassline_mutation: Some(58),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::BocChordPads,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::ChordPads),
+            scale: Some(Scale::Dorian),
+            tempo: Some(88),
+            bars: Some(8),
+            min_octave: Some(2),
+            max_octave: Some(5),
+            chord_style: Some(ChordStyle::BoardsOfCanada),
+            rhythm_style: Some(RhythmStyle::Sparse),
+            tension: Some(62),
+            surprise: Some(42),
+            cadence: Some(45),
+            density: Some(38),
+            note_length: Some(88),
+            repeat_amount: Some(72),
+            variation_amount: Some(12),
+            chord_inversion_amount: Some(35),
+            velocity_mode: Some(VelocityMode::Humanized),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::DreamyArp,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Arp),
+            scale: Some(Scale::MajorPentatonic),
+            tempo: Some(96),
+            min_octave: Some(3),
+            max_octave: Some(6),
+            chord_style: Some(ChordStyle::Modal),
+            rhythm_style: Some(RhythmStyle::Straight),
+            density: Some(55),
+            note_length: Some(68),
+            repeat_amount: Some(58),
+            variation_amount: Some(18),
+            arp_note_count: Some(5),
+            arp_pattern: Some(ArpPattern::UpDown),
+            arp_rotate_slot: Some(5),
+            arp_rotation: Some(ArpRotation::Up),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::ChipLead,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Chiptune),
+            scale: Some(Scale::Mixolydian),
+            tempo: Some(140),
+            min_octave: Some(4),
+            max_octave: Some(7),
+            chord_style: Some(ChordStyle::ChiptuneLoop),
+            rhythm_style: Some(RhythmStyle::Busy),
+            density: Some(82),
+            note_length: Some(18),
+            repeat_amount: Some(65),
+            variation_amount: Some(30),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::SparseMotif,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Melodic),
+            scale: Some(Scale::Dorian),
+            tempo: Some(88),
+            min_octave: Some(3),
+            max_octave: Some(5),
+            chord_style: Some(ChordStyle::Modal),
+            rhythm_style: Some(RhythmStyle::Sparse),
+            density: Some(35),
+            note_length: Some(72),
+            repeat_amount: Some(68),
+            variation_amount: Some(15),
+            ..PresetSettings::EMPTY
+        },
+    },
+    PresetDefinition {
+        preset: GeneratorPreset::BusySequence,
+        settings: PresetSettings {
+            mode: Some(GeneratorMode::Euclidean),
+            scale: Some(Scale::NaturalMinor),
+            tempo: Some(124),
+            min_octave: Some(3),
+            max_octave: Some(6),
+            chord_style: Some(ChordStyle::MinorCinematic),
+            rhythm_style: Some(RhythmStyle::Busy),
+            density: Some(88),
+            note_length: Some(36),
+            repeat_amount: Some(42),
+            variation_amount: Some(45),
+            ..PresetSettings::EMPTY
+        },
+    },
+];
+
 impl GeneratorSettings {
     pub fn apply_preset(&mut self, preset: GeneratorPreset) {
         self.preset = preset;
-        match preset {
-            GeneratorPreset::Custom => {}
-            GeneratorPreset::TechnoBass => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::Techno;
-                self.scale = Scale::MinorPentatonic;
-                self.tempo = 128;
-                self.min_octave = 1;
-                self.max_octave = 3;
-                self.chord_style = ChordStyle::AcidMinimal;
-                self.rhythm_style = RhythmStyle::Syncopated;
-                self.density = 78;
-                self.note_length = 22;
-                self.repeat_amount = 72;
-                self.variation_amount = 35;
-                self.bassline_accent = 82;
-                self.bassline_slide = 45;
-                self.bassline_octave_jump = 46;
-                self.bassline_mutation = 42;
-            }
-            GeneratorPreset::HouseBass => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::House;
-                self.scale = Scale::Dorian;
-                self.tempo = 124;
-                self.min_octave = 2;
-                self.max_octave = 4;
-                self.chord_style = ChordStyle::Pop;
-                self.rhythm_style = RhythmStyle::Syncopated;
-                self.density = 66;
-                self.note_length = 48;
-                self.repeat_amount = 64;
-                self.variation_amount = 24;
-                self.bassline_accent = 58;
-                self.bassline_slide = 10;
-                self.bassline_octave_jump = 22;
-                self.bassline_mutation = 35;
-            }
-            GeneratorPreset::Drill808 => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::Drill;
-                self.scale = Scale::NaturalMinor;
-                self.tempo = 140;
-                self.min_octave = 1;
-                self.max_octave = 3;
-                self.chord_style = ChordStyle::MinorCinematic;
-                self.rhythm_style = RhythmStyle::Sparse;
-                self.density = 52;
-                self.note_length = 88;
-                self.repeat_amount = 55;
-                self.variation_amount = 30;
-                self.bassline_accent = 76;
-                self.bassline_slide = 78;
-                self.bassline_octave_jump = 45;
-                self.bassline_mutation = 48;
-            }
-            GeneratorPreset::HipHop808 => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::HipHop;
-                self.scale = Scale::Blues;
-                self.tempo = 92;
-                self.min_octave = 1;
-                self.max_octave = 3;
-                self.chord_style = ChordStyle::MinorCinematic;
-                self.rhythm_style = RhythmStyle::Sparse;
-                self.density = 42;
-                self.note_length = 72;
-                self.repeat_amount = 60;
-                self.variation_amount = 18;
-                self.bassline_accent = 72;
-                self.bassline_slide = 18;
-                self.bassline_octave_jump = 36;
-                self.bassline_mutation = 28;
-            }
-            GeneratorPreset::UkGarageBass => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::UkGarage;
-                self.scale = Scale::NaturalMinor;
-                self.tempo = 127;
-                self.min_octave = 2;
-                self.max_octave = 4;
-                self.chord_style = ChordStyle::Modal;
-                self.rhythm_style = RhythmStyle::Syncopated;
-                self.density = 70;
-                self.note_length = 34;
-                self.repeat_amount = 62;
-                self.variation_amount = 38;
-                self.bassline_accent = 64;
-                self.bassline_slide = 24;
-                self.bassline_octave_jump = 40;
-                self.bassline_mutation = 55;
-            }
-            GeneratorPreset::DrumAndBass => {
-                self.mode = GeneratorMode::Bassline;
-                self.bassline_style = BasslineStyle::DrumAndBass;
-                self.scale = Scale::NaturalMinor;
-                self.tempo = 174;
-                self.min_octave = 1;
-                self.max_octave = 3;
-                self.chord_style = ChordStyle::MinorCinematic;
-                self.rhythm_style = RhythmStyle::Busy;
-                self.density = 74;
-                self.note_length = 28;
-                self.repeat_amount = 45;
-                self.variation_amount = 48;
-                self.bassline_accent = 80;
-                self.bassline_slide = 20;
-                self.bassline_octave_jump = 34;
-                self.bassline_mutation = 58;
-            }
-            GeneratorPreset::BocChordPads => {
-                self.mode = GeneratorMode::ChordPads;
-                self.scale = Scale::Dorian;
-                self.tempo = 88;
-                self.bars = 8;
-                self.min_octave = 2;
-                self.max_octave = 5;
-                self.chord_style = ChordStyle::BoardsOfCanada;
-                self.rhythm_style = RhythmStyle::Sparse;
-                self.tension = 62;
-                self.surprise = 42;
-                self.cadence = 45;
-                self.density = 38;
-                self.note_length = 88;
-                self.repeat_amount = 72;
-                self.variation_amount = 12;
-                self.chord_inversion_amount = 35;
-                self.velocity_mode = VelocityMode::Humanized;
-            }
-            GeneratorPreset::DreamyArp => {
-                self.mode = GeneratorMode::Arp;
-                self.scale = Scale::MajorPentatonic;
-                self.tempo = 96;
-                self.min_octave = 3;
-                self.max_octave = 6;
-                self.chord_style = ChordStyle::Modal;
-                self.rhythm_style = RhythmStyle::Straight;
-                self.density = 55;
-                self.note_length = 68;
-                self.repeat_amount = 58;
-                self.variation_amount = 18;
-                self.arp_note_count = 5;
-                self.arp_pattern = ArpPattern::UpDown;
-                self.arp_rotate_slot = 5;
-                self.arp_rotation = ArpRotation::Up;
-            }
-            GeneratorPreset::ChipLead => {
-                self.mode = GeneratorMode::Chiptune;
-                self.scale = Scale::Mixolydian;
-                self.tempo = 140;
-                self.min_octave = 4;
-                self.max_octave = 7;
-                self.chord_style = ChordStyle::ChiptuneLoop;
-                self.rhythm_style = RhythmStyle::Busy;
-                self.density = 82;
-                self.note_length = 18;
-                self.repeat_amount = 65;
-                self.variation_amount = 30;
-            }
-            GeneratorPreset::SparseMotif => {
-                self.mode = GeneratorMode::Melodic;
-                self.scale = Scale::Dorian;
-                self.tempo = 88;
-                self.min_octave = 3;
-                self.max_octave = 5;
-                self.chord_style = ChordStyle::Modal;
-                self.rhythm_style = RhythmStyle::Sparse;
-                self.density = 35;
-                self.note_length = 72;
-                self.repeat_amount = 68;
-                self.variation_amount = 15;
-            }
-            GeneratorPreset::BusySequence => {
-                self.mode = GeneratorMode::Euclidean;
-                self.scale = Scale::NaturalMinor;
-                self.tempo = 124;
-                self.min_octave = 3;
-                self.max_octave = 6;
-                self.chord_style = ChordStyle::MinorCinematic;
-                self.rhythm_style = RhythmStyle::Busy;
-                self.density = 88;
-                self.note_length = 36;
-                self.repeat_amount = 42;
-                self.variation_amount = 45;
-            }
+
+        if preset == GeneratorPreset::Custom {
+            return;
         }
+
+        if let Some(definition) = PRESET_DEFINITIONS
+            .iter()
+            .find(|definition| definition.preset == preset)
+        {
+            definition.settings.apply_to(self);
+        }
+
         self.set_phrase_length(self.phrase_length);
         self.set_arp_note_count(self.arp_note_count);
     }

@@ -6,6 +6,7 @@ mod chords;
 mod common;
 mod euclidean;
 mod melody;
+mod pipeline;
 mod settings;
 
 use rand::rngs::StdRng;
@@ -14,8 +15,12 @@ use rand::SeedableRng;
 use crate::music::{pitch_class_name, roman_degree};
 
 pub use crate::constants::PPQN;
-pub use common::ticks_per_bar;
 pub use settings::*;
+
+#[allow(dead_code)]
+pub fn ticks_per_bar() -> u32 {
+    common::ticks_per_bar()
+}
 
 #[derive(Debug, Clone)]
 pub struct GeneratedSong {
@@ -101,74 +106,13 @@ pub fn generate_song_with_chords(
     settings: &GeneratorSettings,
     locked_chords: Option<&[ChordEvent]>,
 ) -> GeneratedSong {
-    let mut rng = StdRng::seed_from_u64(settings.seed);
-    let chords = locked_chords
-        .and_then(|chords| locked_chords_for_song(settings, chords))
-        .unwrap_or_else(|| chords::generate_chords(settings, &mut rng));
-    let notes = match settings.mode {
-        GeneratorMode::Melodic => melody::generate_melodic(settings, &chords, &mut rng),
-        GeneratorMode::Euclidean => euclidean::generate_euclidean(settings, &chords, &mut rng),
-        GeneratorMode::Arp => arp::generate_arp(settings, &chords, &mut rng),
-        GeneratorMode::Chiptune => chiptune::generate_chiptune(settings, &chords, &mut rng),
-        GeneratorMode::Bassline => bassline::generate_bassline(settings, &chords, &mut rng),
-        GeneratorMode::ChordPads => chord_pads::generate_chord_pads(settings, &chords, &mut rng),
-    };
-    let notes = common::apply_velocity_range(
-        settings,
-        common::apply_phrase_memory(settings, notes, &mut rng),
-    );
-
-    GeneratedSong { notes, chords }
-}
-
-fn locked_chords_for_song(
-    settings: &GeneratorSettings,
-    locked_chords: &[ChordEvent],
-) -> Option<Vec<ChordEvent>> {
-    let total_ticks = ticks_per_bar() * settings.bars as u32;
-    if total_ticks == 0 {
-        return None;
-    }
-
-    let mut source = locked_chords.to_vec();
-    source.retain(|chord| chord.duration_ticks > 0);
-    source.sort_by_key(|chord| (chord.start_ticks, chord.duration_ticks));
-
-    let cycle_ticks = source
-        .iter()
-        .map(|chord| chord.start_ticks + chord.duration_ticks)
-        .max()?;
-    if cycle_ticks == 0 {
-        return None;
-    }
-
-    let mut chords = Vec::new();
-    let mut cycle_start = 0;
-    while cycle_start < total_ticks {
-        for chord in &source {
-            let start_ticks = cycle_start + chord.start_ticks;
-            if start_ticks >= total_ticks {
-                continue;
-            }
-
-            let end_ticks = (start_ticks + chord.duration_ticks).min(total_ticks);
-            if end_ticks <= start_ticks {
-                continue;
-            }
-
-            let mut copied = chord.clone();
-            copied.start_ticks = start_ticks;
-            copied.duration_ticks = end_ticks - start_ticks;
-            chords.push(copied);
-        }
-        cycle_start += cycle_ticks;
-    }
-
-    if chords.is_empty() {
-        None
-    } else {
-        Some(chords)
-    }
+    let rng = StdRng::seed_from_u64(settings.seed);
+    pipeline::SongPipeline::new(settings, rng)
+        .with_chords(locked_chords)
+        .generate_mode()
+        .apply_phrase_memory()
+        .apply_velocity_range()
+        .build()
 }
 
 #[cfg(test)]
