@@ -4,6 +4,8 @@ A desktop GUI application for procedurally generating musical melodies, hooks, b
 
 Built in Rust with the [iced](https://github.com/iced-rs/iced) GUI toolkit and [midly](https://github.com/Emilgardis/midly) for MIDI I/O.
 
+![screenshot](images/screenshot.png)
+
 ## Features
 
 - **7 generator modes**
