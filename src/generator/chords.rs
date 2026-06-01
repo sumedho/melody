@@ -39,7 +39,9 @@ pub(crate) fn generate_chords(settings: &GeneratorSettings, rng: &mut StdRng) ->
         };
         let effective_cadence = settings.cadence.saturating_sub(settings.surprise / 2);
         let next_degree = if let Some(patterned_degree) = patterned_degree {
-            if is_penultimate && rng.gen_range(0..100) < effective_cadence {
+            if settings.chord_style == ChordStyle::PopDescent {
+                patterned_degree
+            } else if is_penultimate && rng.gen_range(0..100) < effective_cadence {
                 cadence_approach_degree(settings, rng)
             } else if is_final && rng.gen_range(0..100) < effective_cadence {
                 0
@@ -190,6 +192,7 @@ pub(crate) fn chord_style_degree(
     let pattern: &[usize] = match style {
         ChordStyle::Balanced => &[0, 3, 4, 0],
         ChordStyle::Pop => &[0, 4, 5, 3],
+        ChordStyle::PopDescent => &[5, 3, 0, 4],
         ChordStyle::Modal => &[0, 3, 0, 6],
         ChordStyle::Jazz => &[1, 4, 0, 5],
         ChordStyle::MinorCinematic => &[0, 5, 2, 6],

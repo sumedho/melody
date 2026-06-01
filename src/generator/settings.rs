@@ -14,6 +14,7 @@ pub struct GeneratorSettings {
     pub seed_behavior: SeedBehavior,
     pub chord_style: ChordStyle,
     pub rhythm_style: RhythmStyle,
+    pub hook_type: HookType,
     pub tension: u8,
     pub surprise: u8,
     pub cadence: u8,
@@ -52,6 +53,7 @@ impl Default for GeneratorSettings {
             seed_behavior: SeedBehavior::Locked,
             chord_style: ChordStyle::Balanced,
             rhythm_style: RhythmStyle::Straight,
+            hook_type: HookType::FourNoteLoop,
             tension: 35,
             surprise: 20,
             cadence: 75,
@@ -93,6 +95,7 @@ struct PresetSettings {
     tempo: Option<u16>,
     chord_style: Option<ChordStyle>,
     rhythm_style: Option<RhythmStyle>,
+    hook_type: Option<HookType>,
     tension: Option<u8>,
     surprise: Option<u8>,
     cadence: Option<u8>,
@@ -123,6 +126,7 @@ impl PresetSettings {
         tempo: None,
         chord_style: None,
         rhythm_style: None,
+        hook_type: None,
         tension: None,
         surprise: None,
         cadence: None,
@@ -163,6 +167,9 @@ impl PresetSettings {
         }
         if let Some(value) = self.rhythm_style {
             settings.rhythm_style = value;
+        }
+        if let Some(value) = self.hook_type {
+            settings.hook_type = value;
         }
         if let Some(value) = self.tension {
             settings.tension = value;
@@ -605,6 +612,7 @@ impl Display for SeedBehavior {
 pub enum ChordStyle {
     Balanced,
     Pop,
+    PopDescent,
     Modal,
     Jazz,
     MinorCinematic,
@@ -614,9 +622,10 @@ pub enum ChordStyle {
 }
 
 impl ChordStyle {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Balanced,
         Self::Pop,
+        Self::PopDescent,
         Self::Modal,
         Self::Jazz,
         Self::MinorCinematic,
@@ -631,6 +640,7 @@ impl Display for ChordStyle {
         f.write_str(match self {
             Self::Balanced => "Balanced",
             Self::Pop => "Pop",
+            Self::PopDescent => "Pop descent",
             Self::Modal => "Modal",
             Self::Jazz => "Jazz ii-V",
             Self::MinorCinematic => "Minor cinematic",
@@ -890,6 +900,7 @@ impl Display for Scale {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeneratorMode {
     Melodic,
+    Hook,
     Euclidean,
     Arp,
     Chiptune,
@@ -898,8 +909,9 @@ pub enum GeneratorMode {
 }
 
 impl GeneratorMode {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Melodic,
+        Self::Hook,
         Self::Euclidean,
         Self::Arp,
         Self::Chiptune,
@@ -912,11 +924,43 @@ impl Display for GeneratorMode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Melodic => "Melodic",
+            Self::Hook => "Hook",
             Self::Euclidean => "Euclidean",
             Self::Arp => "Arp",
             Self::Chiptune => "Chiptune",
             Self::Bassline => "Bassline",
             Self::ChordPads => "Chord pads",
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HookType {
+    FourNoteLoop,
+    CallResponse,
+    MotifDevelop,
+    StutterHook,
+    DescendingBass,
+}
+
+impl HookType {
+    pub const ALL: [Self; 5] = [
+        Self::FourNoteLoop,
+        Self::CallResponse,
+        Self::MotifDevelop,
+        Self::StutterHook,
+        Self::DescendingBass,
+    ];
+}
+
+impl Display for HookType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::FourNoteLoop => "Four-note loop",
+            Self::CallResponse => "Call & response",
+            Self::MotifDevelop => "Motif develop",
+            Self::StutterHook => "Stutter hook",
+            Self::DescendingBass => "Descending bass",
         })
     }
 }

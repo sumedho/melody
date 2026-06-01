@@ -169,6 +169,7 @@ fn generator_slug(settings: &GeneratorSettings) -> &'static str {
 fn generator_mode_slug(mode: GeneratorMode) -> &'static str {
     match mode {
         GeneratorMode::Melodic => "melodic",
+        GeneratorMode::Hook => "hook",
         GeneratorMode::Euclidean => "euclidean",
         GeneratorMode::Arp => "arp",
         GeneratorMode::Chiptune => "chiptune",

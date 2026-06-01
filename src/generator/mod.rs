@@ -5,6 +5,7 @@ mod chord_pads;
 mod chords;
 mod common;
 mod euclidean;
+mod hook;
 mod melody;
 mod pipeline;
 mod settings;

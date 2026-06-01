@@ -2,8 +2,8 @@ use rand::rngs::StdRng;
 
 use super::common::{apply_phrase_memory, apply_velocity_range, ticks_per_bar};
 use super::{
-    arp, bassline, chiptune, chord_pads, chords, euclidean, melody, ChordEvent, GeneratedSong,
-    GeneratorMode, GeneratorSettings, NoteEvent,
+    arp, bassline, chiptune, chord_pads, chords, euclidean, hook, melody, ChordEvent,
+    GeneratedSong, GeneratorMode, GeneratorSettings, NoteEvent,
 };
 
 pub(crate) struct SongPipeline<'a> {
@@ -36,6 +36,7 @@ impl<'a> SongPipeline<'a> {
             GeneratorMode::Melodic => {
                 melody::generate_melodic(self.settings, chords, &mut self.rng)
             }
+            GeneratorMode::Hook => hook::generate_hook(self.settings, chords, &mut self.rng),
             GeneratorMode::Euclidean => {
                 euclidean::generate_euclidean(self.settings, chords, &mut self.rng)
             }

@@ -133,6 +133,7 @@ impl MelodyApp {
                 }
             }
             Message::RhythmStyleChanged(value) => self.update_setting(|s| s.rhythm_style = value),
+            Message::HookTypeChanged(value) => self.update_setting(|s| s.hook_type = value),
             Message::DensityChanged(value) => self.update_setting(|s| s.density = value),
             Message::NoteLengthChanged(value) => self.update_setting(|s| s.note_length = value),
             Message::PhraseLengthChanged(value) => {

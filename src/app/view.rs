@@ -75,6 +75,7 @@ impl MelodyApp {
     fn controls(&self) -> Element<'_, Message> {
         let mode_help = match self.music.settings.mode {
             GeneratorMode::Melodic => "Pattern grammar with chord-aware melodic contour.",
+            GeneratorMode::Hook => "Short repeating riffs with pop and dance hook shapes.",
             GeneratorMode::Euclidean => "Evenly distributed pulses with rotation and accents.",
             GeneratorMode::Arp => "Chord tones unfolded as musical arpeggios.",
             GeneratorMode::Chiptune => "Gated leads, octave jumps, motifs, and pulse-bass flavor.",
@@ -101,6 +102,7 @@ impl MelodyApp {
                 3
             ),
             text(mode_help).size(13),
+            self.hook_controls(),
             self.arp_controls(),
             self.bassline_controls(),
         ]
@@ -360,6 +362,24 @@ impl MelodyApp {
                 ArpRotation::ALL.to_vec(),
                 self.music.settings.arp_rotation,
                 Message::ArpRotationChanged
+            ),
+        ]
+        .spacing(10)
+        .into()
+    }
+
+    fn hook_controls(&self) -> Element<'_, Message> {
+        if self.music.settings.mode != GeneratorMode::Hook {
+            return column![].into();
+        }
+
+        column![
+            section_label("Hook"),
+            labeled_pick(
+                "Type",
+                HookType::ALL.to_vec(),
+                self.music.settings.hook_type,
+                Message::HookTypeChanged
             ),
         ]
         .spacing(10)

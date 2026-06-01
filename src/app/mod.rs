@@ -48,6 +48,7 @@ enum Message {
     ChordInversionChanged(u8),
     ChordStyleChanged(ChordStyle),
     ChordLockChanged(bool),
+    HookTypeChanged(HookType),
     RhythmStyleChanged(RhythmStyle),
     DensityChanged(u8),
     NoteLengthChanged(u8),
