@@ -1,4 +1,5 @@
 mod app;
+mod constants;
 mod generator;
 mod midi;
 mod music;

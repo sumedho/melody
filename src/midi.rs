@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::constants::DEFAULT_EXPORT_DIR;
 use crate::generator::{BasslineStyle, GeneratedSong, GeneratorMode, GeneratorSettings, PPQN};
 
 static EXPORT_NAME_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -137,7 +138,7 @@ fn write_midi_file(song: &GeneratedSong, tempo: u16, path: &Path) -> Result<(), 
 }
 
 pub fn unique_midi_filename(settings: &GeneratorSettings) -> String {
-    unique_midi_path(settings, Path::new("exports"))
+    unique_midi_path(settings, Path::new(DEFAULT_EXPORT_DIR))
         .display()
         .to_string()
 }
