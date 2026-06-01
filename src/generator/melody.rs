@@ -29,7 +29,8 @@ pub(crate) fn generate_melodic(
             let dur = (*duration).min(total - cursor);
             if rng.gen_range(0..100) <= rhythm_density(settings) {
                 let chord = chord_at(chords, cursor);
-                let strong = cursor % ticks_per_bar() == 0 || cursor % PPQN as u32 == 0;
+                let strong =
+                    cursor.is_multiple_of(ticks_per_bar()) || cursor.is_multiple_of(PPQN as u32);
                 let pitch = choose_melodic_pitch(settings, chord, last_pitch, strong, rng);
                 last_pitch = pitch as i32;
                 notes.push(NoteEvent {

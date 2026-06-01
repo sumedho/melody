@@ -28,7 +28,7 @@ pub(crate) fn generate_chiptune(
         let base = scale_pitch(settings, degree, settings.min_octave as i8 + 1)
             .clamp(settings.low_pitch(), settings.high_pitch());
         let chord_tones = chord.tones();
-        let pitch = if step % 4 == 0 {
+        let pitch = if step.is_multiple_of(4) {
             nearest_pitch_class(settings, base, &chord_tones)
         } else if rng.gen_bool(CHIPTUNE_OCTAVE_JUMP_CHANCE) {
             base.saturating_add(CHIPTUNE_OCTAVE_INTERVAL as u8)

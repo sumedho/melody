@@ -102,9 +102,9 @@ impl PreviewNoteIndex {
 }
 
 pub fn grid_line_for_step(step: u32) -> GridLine {
-    if step % 16 == 0 {
+    if step.is_multiple_of(16) {
         GridLine::Bar
-    } else if step % 4 == 0 {
+    } else if step.is_multiple_of(4) {
         GridLine::Beat
     } else {
         GridLine::Step

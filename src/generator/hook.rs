@@ -120,13 +120,13 @@ fn generate_stutter_hook(
 
     for bar in 0..settings.bars as u32 {
         let bar_start = bar * bar_ticks;
-        for beat in 0..4 {
+        for beat in 0_u32..4 {
             let repeats = beat + 1;
             let slot = beat_ticks / repeats;
             for repeat in 0..repeats {
                 let density_threshold = settings.density.saturating_add((beat * 8) as u8);
                 if rng.gen_range(0..100) <= density_threshold {
-                    let start = bar_start + beat as u32 * beat_ticks + repeat as u32 * slot;
+                    let start = bar_start + beat * beat_ticks + repeat * slot;
                     let pitch = seed[(beat as usize).min(seed.len() - 1)];
                     notes.push(note(settings, start, slot, pitch, rng));
                 }

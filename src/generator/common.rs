@@ -45,9 +45,9 @@ pub(crate) fn apply_bar_density(
                 let local_start = note.start_ticks - bar_start;
                 let grid_score = if local_start == 0 {
                     3
-                } else if local_start % PPQN as u32 == 0 {
+                } else if local_start.is_multiple_of(PPQN as u32) {
                     2
-                } else if local_start % (PPQN as u32 / STEPS_PER_BEAT) == 0 {
+                } else if local_start.is_multiple_of(PPQN as u32 / STEPS_PER_BEAT) {
                     1
                 } else {
                     0
@@ -221,18 +221,18 @@ pub(crate) fn velocity_for(settings: &GeneratorSettings, start: u32, rng: &mut S
             rng.gen_range(settings.random_velocity_min..=settings.random_velocity_max)
         }
         VelocityMode::Accented => {
-            if start % ticks_per_bar() == 0 {
+            if start.is_multiple_of(ticks_per_bar()) {
                 116
-            } else if start % PPQN as u32 == 0 {
+            } else if start.is_multiple_of(PPQN as u32) {
                 98
             } else {
                 76
             }
         }
         VelocityMode::Humanized => {
-            let base = if start % ticks_per_bar() == 0 {
+            let base = if start.is_multiple_of(ticks_per_bar()) {
                 108
-            } else if start % PPQN as u32 == 0 {
+            } else if start.is_multiple_of(PPQN as u32) {
                 92
             } else {
                 74

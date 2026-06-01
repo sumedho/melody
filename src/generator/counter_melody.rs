@@ -95,7 +95,7 @@ fn generate_counter_line(
 
         for start in candidates.into_iter().take(target_counter_count) {
             let chord = chord_at(chords, start);
-            let strong = start % bar_ticks == 0 || start % PPQN as u32 == 0;
+            let strong = start.is_multiple_of(bar_ticks) || start.is_multiple_of(PPQN as u32);
             let target = contrary_target(main, start)
                 .or_else(|| last_counter_pitch.map(i32::from))
                 .unwrap_or_else(|| i32::from(counter_settings.low_pitch()));
@@ -137,7 +137,7 @@ fn counter_slot_score(tick: u32, main: &[NoteEvent], bar_start: u32) -> (u8, u32
     let local = tick - bar_start;
     let beat_score = if local % PPQN as u32 == PPQN as u32 / 2 {
         0
-    } else if local % PPQN as u32 == 0 {
+    } else if local.is_multiple_of(PPQN as u32) {
         1
     } else {
         2

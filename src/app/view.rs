@@ -98,12 +98,11 @@ impl MelodyApp {
                 self.music.settings.preset,
                 Message::PresetChanged
             ),
-            text("Generator").size(13),
-            segmented_control(
-                &GeneratorMode::ALL,
+            labeled_pick(
+                "Generator",
+                GeneratorMode::ALL.to_vec(),
                 self.music.settings.mode,
-                Message::ModeChanged,
-                3
+                Message::ModeChanged
             ),
             text(mode_help).size(13),
             self.drop_controls(),

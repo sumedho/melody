@@ -302,7 +302,7 @@ pub(crate) fn choose_bassline_pitch(
 
     let root_class = chord.root % 12;
     let fifth_class = (chord.root + 7) % 12;
-    let pitch = if step % 8 == 0 {
+    let pitch = if step.is_multiple_of(8) {
         candidates
             .iter()
             .copied()
@@ -361,7 +361,7 @@ fn bass_target_class(settings: &GeneratorSettings, chord: &ChordEvent, degree: u
     }
 
     let chord_tones = chord.tones();
-    if degree % 2 == 0 {
+    if degree.is_multiple_of(2) {
         if let Some(tone) = chord_tones.get(degree / 2) {
             return *tone % 12;
         }

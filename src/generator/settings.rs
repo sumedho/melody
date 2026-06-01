@@ -947,6 +947,7 @@ impl Display for GeneratorMode {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DropType {
     BassDrop,

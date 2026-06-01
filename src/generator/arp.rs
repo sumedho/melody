@@ -41,7 +41,7 @@ pub(crate) fn generate_arp(
             });
             cursor += rate;
             index += 1;
-            if index % order.len() == 0 {
+            if index.is_multiple_of(order.len()) {
                 cycle += 1;
             }
         }
