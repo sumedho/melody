@@ -90,6 +90,12 @@ fn seed_and_export_edits_do_not_mark_preset_custom() {
         &mut app,
         Message::ExportFilenameChanged("manual.mid".to_string()),
     );
+    apply(
+        &mut app,
+        Message::DragMidiFinished(crate::drag_export::DragExportResult::Failed(
+            "test failure".to_string(),
+        )),
+    );
 
     assert_eq!(app.music.settings.preset, GeneratorPreset::TechnoBass);
 }
@@ -188,6 +194,38 @@ fn editing_filename_keeps_selected_directory() {
         directory.join("manual-name").display().to_string()
     );
     assert!(!app.export.path_auto);
+}
+
+#[test]
+fn drag_midi_without_window_prepares_temp_file() {
+    let mut app = app();
+    app.window_id = None;
+
+    apply(&mut app, Message::DragMidi);
+
+    let path = app
+        .last_drag_midi_path
+        .as_ref()
+        .expect("drag MIDI path is stored");
+    assert!(path.exists());
+    assert!(app.ui.status.contains("app window is not ready"));
+    assert_eq!(app.music.settings.preset, GeneratorPreset::Custom);
+}
+
+#[test]
+fn unavailable_drag_result_updates_status() {
+    let mut app = app();
+    let path = PathBuf::from("/tmp/melody-drag-test.mid");
+
+    apply(
+        &mut app,
+        Message::DragMidiFinished(crate::drag_export::DragExportResult::Unavailable(
+            path.clone(),
+        )),
+    );
+
+    assert!(app.ui.status.contains(&path.display().to_string()));
+    assert!(app.ui.status.contains("unavailable"));
 }
 
 #[test]

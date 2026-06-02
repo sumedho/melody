@@ -9,8 +9,9 @@ use crate::ui::{grid_line_for_step, PreviewNoteIndex, PreviewStep};
 
 use super::sidebar::{expandable_group, SidebarSection};
 use super::widgets::{
-    chord_style, field_style, labeled_pick, labeled_slider_u16, labeled_slider_u8, panel_style,
-    section_label, segmented_control, summary_style, timeline_cell_style, toolbar_button,
+    chord_style, drag_toolbar_control, field_style, labeled_pick, labeled_slider_u16,
+    labeled_slider_u8, panel_style, section_label, segmented_control, summary_style,
+    timeline_cell_style, toolbar_button,
 };
 use super::{MelodyApp, Message};
 
@@ -46,6 +47,7 @@ impl MelodyApp {
                     toolbar_button("Generate", Message::Generate, true),
                     toolbar_button("Randomize", Message::RandomizeSeed, false),
                     toolbar_button("Browse", Message::BrowseExportDirectory, false),
+                    drag_toolbar_control(),
                     toolbar_button("Export", Message::Export, false),
                 ]
                 .spacing(8)

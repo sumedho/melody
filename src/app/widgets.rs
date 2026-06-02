@@ -1,7 +1,7 @@
 use iced::theme;
 use iced::widget::container::Appearance as ContainerAppearance;
-use iced::widget::{button, column, pick_list, row, slider, text};
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::widget::{button, column, container, mouse_area, pick_list, row, slider, text};
+use iced::{mouse, Background, Border, Color, Element, Length, Theme};
 use std::fmt::Display;
 
 use crate::constants::VELOCITY_SHAPING_POWER;
@@ -74,6 +74,17 @@ pub(super) fn toolbar_button(
         .into()
 }
 
+pub(super) fn drag_toolbar_control() -> Element<'static, Message> {
+    mouse_area(
+        container(text("Drag MIDI").size(13))
+            .padding([8, 11])
+            .style(drag_control_style()),
+    )
+    .on_press(Message::DragMidi)
+    .interaction(mouse::Interaction::Grab)
+    .into()
+}
+
 pub(super) fn section_label(label: &str) -> Element<'_, Message> {
     text(label).size(16).into()
 }
@@ -142,6 +153,19 @@ pub(super) fn field_style() -> theme::Container {
         background: Some(Background::Color(Color::from_rgb8(20, 25, 38))),
         border: Border {
             color: Color::from_rgb8(45, 55, 78),
+            width: 1.0,
+            radius: 4.0.into(),
+        },
+        ..Default::default()
+    })
+}
+
+fn drag_control_style() -> theme::Container {
+    theme::Container::from(|_theme: &Theme| ContainerAppearance {
+        text_color: Some(Color::from_rgb8(226, 232, 240)),
+        background: Some(Background::Color(Color::from_rgb8(42, 49, 69))),
+        border: Border {
+            color: Color::from_rgb8(67, 78, 108),
             width: 1.0,
             radius: 4.0.into(),
         },

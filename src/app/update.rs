@@ -2,6 +2,7 @@ use iced::Command;
 use rand::Rng;
 use std::path::PathBuf;
 
+use crate::drag_export::{self, DragExportResult};
 use crate::generator::*;
 use crate::midi::export_midi;
 
@@ -98,6 +99,12 @@ impl MelodyApp {
                     Err(error) => self.ui.status = format!("Export failed: {error}"),
                 }
             }
+            Message::DragMidi => {
+                return self.drag_midi();
+            }
+            Message::DragMidiFinished(result) => {
+                self.handle_drag_midi_result(result);
+            }
             Message::BrowseExportDirectory => {
                 return Command::perform(pick_export_directory(), Message::ExportDirectorySelected);
             }
@@ -180,6 +187,55 @@ impl MelodyApp {
         }
 
         Command::none()
+    }
+
+    fn drag_midi(&mut self) -> Command<Message> {
+        let path = match drag_export::write_drag_midi(&self.music.output, self.music.settings.tempo)
+        {
+            Ok(path) => path,
+            Err(error) => {
+                self.ui.status = format!("MIDI drag export failed: {error}");
+                return Command::none();
+            }
+        };
+
+        self.last_drag_midi_path = Some(path.clone());
+
+        let Some(window_id) = self.window_id else {
+            self.ui.status = format!(
+                "Prepared MIDI for drag at {}, but the app window is not ready.",
+                path.display()
+            );
+            return Command::none();
+        };
+
+        self.ui.status = format!("Prepared MIDI drag file: {}.", path.display());
+
+        iced::window::run_with_handle(window_id, move |handle| {
+            match drag_export::begin_native_file_drag(handle, &path) {
+                Ok(()) => DragExportResult::Started(path),
+                Err(_) if !cfg!(target_os = "macos") => DragExportResult::Unavailable(path),
+                Err(error) => DragExportResult::Failed(error),
+            }
+        })
+        .map(Message::DragMidiFinished)
+    }
+
+    fn handle_drag_midi_result(&mut self, result: DragExportResult) {
+        match result {
+            DragExportResult::Started(path) => {
+                self.ui.status = format!("Started MIDI drag from {}.", path.display());
+            }
+            DragExportResult::Unavailable(path) => {
+                self.ui.status = format!(
+                    "Prepared MIDI at {}. Native drag is unavailable on this platform.",
+                    path.display()
+                );
+            }
+            DragExportResult::Failed(error) => {
+                self.ui.status = format!("MIDI drag failed: {error}");
+            }
+        }
     }
 }
 

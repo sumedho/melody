@@ -11,6 +11,7 @@ use iced::{Application, Command, Element, Settings, Size, Theme};
 use std::path::{Path, PathBuf};
 
 use crate::constants::{DEFAULT_EXPORT_DIR, DEFAULT_EXPORT_FILENAME};
+use crate::drag_export::DragExportResult;
 use crate::generator::*;
 use crate::midi::unique_midi_filename;
 
@@ -40,6 +41,8 @@ enum Message {
     RandomizeSeed,
     Generate,
     Export,
+    DragMidi,
+    DragMidiFinished(DragExportResult),
     BrowseExportDirectory,
     ExportDirectorySelected(Option<PathBuf>),
     ExportFilenameChanged(String),
@@ -77,6 +80,8 @@ struct MelodyApp {
     music: MusicState,
     export: ExportState,
     ui: UIState,
+    window_id: Option<iced::window::Id>,
+    last_drag_midi_path: Option<PathBuf>,
 }
 
 struct MusicState {
@@ -124,6 +129,8 @@ impl Application for MelodyApp {
                     seed_input: settings.seed.to_string(),
                     status: "Generated a starting melody.".to_string(),
                 },
+                window_id: Some(iced::window::Id::MAIN),
+                last_drag_midi_path: None,
             },
             Command::none(),
         )

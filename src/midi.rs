@@ -1,6 +1,6 @@
 use midly::num::{u15, u24, u28, u4, u7};
 use midly::{Format, Header, MetaMessage, MidiMessage, Smf, Timing, TrackEvent, TrackEventKind};
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -43,7 +43,8 @@ pub fn export_midi(
         ));
     }
 
-    write_midi_file(song, tempo, &path)?;
+    let bytes = midi_bytes(song, tempo)?;
+    fs::write(&path, bytes).map_err(|error| error.to_string())?;
     Ok(ExportResult {
         path,
         created_parent,
@@ -69,7 +70,7 @@ pub fn normalized_midi_path(requested_path: &str) -> Result<PathBuf, String> {
     }
 }
 
-fn write_midi_file(song: &GeneratedSong, tempo: u16, path: &Path) -> Result<(), String> {
+pub fn midi_bytes(song: &GeneratedSong, tempo: u16) -> Result<Vec<u8>, String> {
     let mut absolute_events = Vec::new();
     absolute_events.push((
         0,
@@ -133,8 +134,10 @@ fn write_midi_file(song: &GeneratedSong, tempo: u16, path: &Path) -> Result<(), 
         tracks: vec![track],
     };
 
-    let mut file = File::create(path).map_err(|error| error.to_string())?;
-    smf.write_std(&mut file).map_err(|error| error.to_string())
+    let mut bytes = Vec::new();
+    smf.write_std(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    Ok(bytes)
 }
 
 pub fn unique_midi_filename(settings: &GeneratorSettings) -> String {
@@ -251,6 +254,16 @@ mod tests {
         assert!(fs::metadata(&path).unwrap().len() > 32);
 
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn midi_bytes_are_parseable() {
+        let settings = GeneratorSettings::default();
+        let song = generate_song(&settings);
+
+        let bytes = midi_bytes(&song, settings.tempo).unwrap();
+
+        Smf::parse(&bytes).expect("MIDI bytes should parse");
     }
 
     #[test]
